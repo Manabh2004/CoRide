@@ -1,0 +1,106 @@
+export const colors = {
+  black: '#1a1a1a',
+  yellow: '#F5C842',
+  white: '#ffffff',
+  offWhite: '#f9f9f9',
+  gray: '#888888',
+  lightGray: '#f5f5f5',
+  border: '#eeeeee',
+  borderDark: '#dddddd',
+  red: '#e74c3c',
+  green: '#27AE60',
+  text: '#333333',
+  subtext: '#555555',
+};
+
+export const shared = {
+  container: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    padding: 24,
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    backgroundColor: '#ffffff',
+    padding: 24,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  button: {
+    padding: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#dddddd',
+    borderRadius: 8,
+    padding: 14,
+    fontSize: 15,
+    marginBottom: 18,
+    backgroundColor: '#ffffff',
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#555555',
+    marginBottom: 6,
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#eeeeee',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+    marginBottom: 12,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#dddddd',
+  },
+  chipActive: {
+    backgroundColor: '#1a1a1a',
+    borderColor: '#1a1a1a',
+  },
+  chipText: {
+    fontSize: 13,
+    color: '#555555',
+  },
+  chipTextActive: {
+    color: '#ffffff',
+  },
+  mapButton: {
+    borderWidth: 1,
+    borderColor: '#dddddd',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 20,
+    backgroundColor: '#f9f9f9',
+  },
+  mapButtonText: {
+    fontSize: 14,
+    color: '#444444',
+  },
+};

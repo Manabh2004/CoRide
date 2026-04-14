@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { auth } from '../services/firebase';
 import api from '../services/api';
+import { colors, shared } from '../styles/theme';
 
 export default function OfferRideScreen({ navigation }) {
   const [origin, setOrigin] = useState(null);
@@ -14,13 +15,16 @@ export default function OfferRideScreen({ navigation }) {
   const [rate, setRate] = useState('4');
   const [recurring, setRecurring] = useState(false);
   const [days, setDays] = useState([]);
+  const [autoAccept, setAutoAccept] = useState(false);
+  const [minRating, setMinRating] = useState(0);
+  const [minVouches, setMinVouches] = useState(0);
   const [loading, setLoading] = useState(false);
 
   const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   const openMapPicker = (type) => {
     navigation.navigate('MapPicker', {
-      title: type === 'origin' ? 'Select Origin' : 'Select Destination',
+      title: type === 'origin' ? '🚗 Select Your Starting Point' : '🏁 Select Your Destination',
       onLocationPicked: (location) => {
         if (type === 'origin') setOrigin(location);
         else setDestination(location);
@@ -29,9 +33,7 @@ export default function OfferRideScreen({ navigation }) {
   };
 
   const toggleDay = (day) => {
-    setDays(prev =>
-      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
-    );
+    setDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
   };
 
   const handleOffer = async () => {
@@ -46,7 +48,7 @@ export default function OfferRideScreen({ navigation }) {
     setLoading(true);
     try {
       const user = auth.currentUser;
-      await api.post('/rides', {
+      const res = await api.post('/rides', {
         host_uid: user.uid,
         host_name: user.displayName,
         origin_address: origin.address,
@@ -60,14 +62,22 @@ export default function OfferRideScreen({ navigation }) {
         rate_per_km: parseFloat(rate),
         is_recurring: recurring,
         recurring_days: days,
+        auto_accept: autoAccept,
+        min_rating_required: minRating,
+        min_vouches_required: minVouches,
       });
+
       Alert.alert(
         'Ride Posted! 🎉',
         'Members going your way will be matched with you.',
-        [{ text: 'OK', onPress: () => navigation.navigate('HostDashboard') }]
+        [{
+          text: 'Browse available members',
+          onPress: () => navigation.navigate('BrowseMembers', { ride_id: res.data.ride_id }),
+        },
+        { text: 'Go to Dashboard', onPress: () => navigation.navigate('HostDashboard') }]
       );
     } catch (e) {
-      Alert.alert('Error', 'Could not post ride. Is the Flask server running?');
+      Alert.alert('Error', 'Could not post ride. Check your connection.');
     } finally {
       setLoading(false);
     }
@@ -77,86 +87,132 @@ export default function OfferRideScreen({ navigation }) {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.sectionTitle}>Share your journey</Text>
 
-      <Text style={styles.label}>Your starting point</Text>
-      <TouchableOpacity style={styles.mapButton} onPress={() => openMapPicker('origin')}>
-        <Text style={styles.mapButtonText}>
+      <Text style={shared.label}>Your starting point</Text>
+      <TouchableOpacity style={shared.mapButton} onPress={() => openMapPicker('origin')}>
+        <Text style={shared.mapButtonText}>
           {origin ? `📍 ${origin.address.substring(0, 50)}` : '🗺️ Search or tap on map'}
         </Text>
       </TouchableOpacity>
 
-      <Text style={styles.label}>Your destination</Text>
-      <TouchableOpacity style={styles.mapButton} onPress={() => openMapPicker('destination')}>
-        <Text style={styles.mapButtonText}>
+      <Text style={shared.label}>Your destination</Text>
+      <TouchableOpacity style={shared.mapButton} onPress={() => openMapPicker('destination')}>
+        <Text style={shared.mapButtonText}>
           {destination ? `📍 ${destination.address.substring(0, 50)}` : '🗺️ Search or tap on map'}
         </Text>
       </TouchableOpacity>
 
-      <Text style={styles.label}>Departure time</Text>
+      <Text style={shared.label}>Departure time</Text>
       <View style={styles.chipRow}>
         {['07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM'].map(t => (
           <TouchableOpacity
             key={t}
-            style={[styles.chip, time === t && styles.chipActive]}
+            style={[shared.chip, time === t && shared.chipActive]}
             onPress={() => setTime(t)}
           >
-            <Text style={[styles.chipText, time === t && styles.chipTextActive]}>{t}</Text>
+            <Text style={[shared.chipText, time === t && shared.chipTextActive]}>{t}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
       <View style={styles.row}>
         <View style={styles.halfField}>
-          <Text style={styles.label}>Available seats</Text>
-          <TextInput
-            style={styles.input}
-            value={seats}
-            onChangeText={setSeats}
-            keyboardType="numeric"
-            placeholder="e.g. 2"
-          />
+          <Text style={shared.label}>Available seats</Text>
+          <TextInput style={shared.input} value={seats} onChangeText={setSeats}
+            keyboardType="numeric" placeholder="e.g. 2" />
         </View>
         <View style={styles.halfField}>
-          <Text style={styles.label}>Rate (₹/km)</Text>
-          <TextInput
-            style={styles.input}
-            value={rate}
-            onChangeText={setRate}
-            keyboardType="numeric"
-            placeholder="e.g. 4"
-          />
+          <Text style={shared.label}>Rate (₹/km)</Text>
+          <TextInput style={shared.input} value={rate} onChangeText={setRate}
+            keyboardType="numeric" placeholder="e.g. 4" />
         </View>
       </View>
 
-      <TouchableOpacity
-        style={styles.recurringToggle}
-        onPress={() => setRecurring(!recurring)}
-      >
-        <View style={[styles.toggle, recurring && styles.toggleActive]}>
-          <View style={[styles.toggleKnob, recurring && styles.toggleKnobActive]} />
+      {/* Auto-accept toggle */}
+      <View style={styles.toggleRow}>
+        <TouchableOpacity
+          style={[styles.toggle, autoAccept && styles.toggleOn]}
+          onPress={() => setAutoAccept(!autoAccept)}
+        >
+          <View style={[styles.toggleKnob, autoAccept && styles.toggleKnobOn]} />
+        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.toggleLabel}>Auto-accept members</Text>
+          <Text style={styles.toggleSub}>
+            {autoAccept
+              ? 'Members meeting your criteria are confirmed instantly'
+              : 'You review and accept/reject each request manually'}
+          </Text>
         </View>
-        <Text style={styles.recurringLabel}>Recurring ride (repeat weekly)</Text>
-      </TouchableOpacity>
+      </View>
+
+      {/* Auto-accept filters — only show when auto-accept is on */}
+      {autoAccept && (
+        <View style={styles.filterBox}>
+          <Text style={styles.filterTitle}>Auto-accept criteria</Text>
+          <Text style={shared.label}>Minimum star rating</Text>
+          <View style={styles.chipRow}>
+            {[0, 3, 3.5, 4, 4.5].map(r => (
+              <TouchableOpacity
+                key={r}
+                style={[shared.chip, minRating === r && shared.chipActive]}
+                onPress={() => setMinRating(r)}
+              >
+                <Text style={[shared.chipText, minRating === r && shared.chipTextActive]}>
+                  {r === 0 ? 'Any' : `${r}★`}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={shared.label}>Minimum community vouches</Text>
+          <View style={styles.chipRow}>
+            {[0, 1, 3, 5].map(v => (
+              <TouchableOpacity
+                key={v}
+                style={[shared.chip, minVouches === v && shared.chipActive]}
+                onPress={() => setMinVouches(v)}
+              >
+                <Text style={[shared.chipText, minVouches === v && shared.chipTextActive]}>
+                  {v === 0 ? 'Any' : `${v}+ vouches`}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* Recurring toggle */}
+      <View style={styles.toggleRow}>
+        <TouchableOpacity
+          style={[styles.toggle, recurring && styles.toggleOn]}
+          onPress={() => setRecurring(!recurring)}
+        >
+          <View style={[styles.toggleKnob, recurring && styles.toggleKnobOn]} />
+        </TouchableOpacity>
+        <Text style={styles.toggleLabel}>Recurring ride (repeat weekly)</Text>
+      </View>
 
       {recurring && (
-        <View style={styles.daysRow}>
+        <View style={styles.chipRow}>
           {DAYS.map(d => (
             <TouchableOpacity
               key={d}
-              style={[styles.dayChip, days.includes(d) && styles.dayChipActive]}
+              style={[shared.chip, days.includes(d) && shared.chipActive]}
               onPress={() => toggleDay(d)}
             >
-              <Text style={[styles.dayChipText, days.includes(d) && styles.dayChipTextActive]}>
-                {d}
-              </Text>
+              <Text style={[shared.chipText, days.includes(d) && shared.chipTextActive]}>{d}</Text>
             </TouchableOpacity>
           ))}
         </View>
       )}
 
-      <TouchableOpacity style={styles.button} onPress={handleOffer} disabled={loading}>
+      <TouchableOpacity
+        style={[shared.button, { backgroundColor: colors.yellow }]}
+        onPress={handleOffer}
+        disabled={loading}
+      >
         {loading
-          ? <ActivityIndicator color="#1a1a1a" />
-          : <Text style={styles.buttonText}>Post My Ride</Text>
+          ? <ActivityIndicator color={colors.black} />
+          : <Text style={[shared.buttonText, { color: colors.black }]}>Post My Ride</Text>
         }
       </TouchableOpacity>
     </ScrollView>
@@ -164,30 +220,18 @@ export default function OfferRideScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 24, backgroundColor: '#fff', flexGrow: 1 },
-  sectionTitle: { fontSize: 22, fontWeight: 'bold', color: '#1a1a1a', marginBottom: 24, marginTop: 8 },
-  label: { fontSize: 14, fontWeight: '600', color: '#555', marginBottom: 8 },
-  mapButton: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 16, marginBottom: 20, backgroundColor: '#f9f9f9' },
-  mapButtonText: { fontSize: 14, color: '#444' },
+  container: { padding: 24, backgroundColor: colors.white, flexGrow: 1 },
+  sectionTitle: { fontSize: 22, fontWeight: 'bold', color: colors.black, marginBottom: 24, marginTop: 8 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
-  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#ddd' },
-  chipActive: { backgroundColor: '#1a1a1a', borderColor: '#1a1a1a' },
-  chipText: { fontSize: 13, color: '#555' },
-  chipTextActive: { color: '#fff' },
   row: { flexDirection: 'row', gap: 16 },
   halfField: { flex: 1 },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 14, fontSize: 15, marginBottom: 20 },
-  recurringToggle: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 12 },
-  toggle: { width: 44, height: 24, borderRadius: 12, backgroundColor: '#ddd', justifyContent: 'center', padding: 2 },
-  toggleActive: { backgroundColor: '#F5C842' },
-  toggleKnob: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff' },
-  toggleKnobActive: { alignSelf: 'flex-end' },
-  recurringLabel: { fontSize: 14, color: '#555', fontWeight: '600' },
-  daysRow: { flexDirection: 'row', gap: 8, marginBottom: 24, flexWrap: 'wrap' },
-  dayChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#ddd' },
-  dayChipActive: { backgroundColor: '#F5C842', borderColor: '#F5C842' },
-  dayChipText: { fontSize: 13, color: '#555' },
-  dayChipTextActive: { color: '#1a1a1a', fontWeight: 'bold' },
-  button: { backgroundColor: '#F5C842', padding: 16, borderRadius: 10, alignItems: 'center', marginTop: 8 },
-  buttonText: { color: '#1a1a1a', fontSize: 16, fontWeight: 'bold' },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 12 },
+  toggle: { width: 44, height: 24, borderRadius: 12, backgroundColor: colors.borderDark, justifyContent: 'center', padding: 2 },
+  toggleOn: { backgroundColor: colors.yellow },
+  toggleKnob: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.white },
+  toggleKnobOn: { alignSelf: 'flex-end' },
+  toggleLabel: { fontSize: 14, color: colors.black, fontWeight: '600' },
+  toggleSub: { fontSize: 11, color: colors.gray, marginTop: 2 },
+  filterBox: { backgroundColor: colors.offWhite, borderRadius: 12, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: colors.border },
+  filterTitle: { fontSize: 14, fontWeight: 'bold', color: colors.black, marginBottom: 12 },
 });

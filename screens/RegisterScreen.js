@@ -6,6 +6,7 @@ import {
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import api from '../services/api';
+import { colors, shared } from '../styles/theme';
 
 export default function RegisterScreen({ navigation }) {
   const [name, setName] = useState('');
@@ -30,12 +31,10 @@ export default function RegisterScreen({ navigation }) {
       try {
         await api.post('/users/register', {
           firebase_uid: userCredential.user.uid,
-          name,
-          email,
-          phone,
+          name, email, phone,
         });
       } catch (e) {
-        console.log('MySQL save failed:', e.message);
+        console.log('Backend save failed:', e.message);
       }
       navigation.replace('Home');
     } catch (error) {
@@ -50,29 +49,29 @@ export default function RegisterScreen({ navigation }) {
       <Text style={styles.title}>Create Account</Text>
       <Text style={styles.subtitle}>Join the CoRide community</Text>
 
-      <Text style={styles.label}>Full name</Text>
-      <TextInput style={styles.input} placeholder="Your name"
-        value={name} onChangeText={setName} />
+      <Text style={shared.label}>Full name</Text>
+      <TextInput style={shared.input} placeholder="Your name" value={name} onChangeText={setName} />
 
-      <Text style={styles.label}>Email</Text>
-      <TextInput style={styles.input} placeholder="your@email.com"
-        value={email} onChangeText={setEmail}
-        keyboardType="email-address" autoCapitalize="none" />
+      <Text style={shared.label}>Email</Text>
+      <TextInput style={shared.input} placeholder="your@email.com" value={email}
+        onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
 
-      <Text style={styles.label}>Phone number</Text>
-      <TextInput style={styles.input} placeholder="10 digit number"
-        value={phone} onChangeText={setPhone}
-        keyboardType="phone-pad" maxLength={10} />
+      <Text style={shared.label}>Phone number</Text>
+      <TextInput style={shared.input} placeholder="10 digit number" value={phone}
+        onChangeText={setPhone} keyboardType="phone-pad" maxLength={10} />
 
-      <Text style={styles.label}>Password</Text>
-      <TextInput style={styles.input} placeholder="Create a password"
-        value={password} onChangeText={setPassword}
-        secureTextEntry />
+      <Text style={shared.label}>Password</Text>
+      <TextInput style={shared.input} placeholder="Create a password" value={password}
+        onChangeText={setPassword} secureTextEntry />
 
-      <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
+      <TouchableOpacity
+        style={[shared.button, { backgroundColor: colors.black }]}
+        onPress={handleRegister}
+        disabled={loading}
+      >
         {loading
-          ? <ActivityIndicator color="#fff" />
-          : <Text style={styles.buttonText}>Create Account</Text>
+          ? <ActivityIndicator color={colors.white} />
+          : <Text style={[shared.buttonText, { color: colors.white }]}>Create Account</Text>
         }
       </TouchableOpacity>
 
@@ -84,12 +83,8 @@ export default function RegisterScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 24, backgroundColor: '#fff', flexGrow: 1, justifyContent: 'center' },
-  title: { fontSize: 32, fontWeight: 'bold', marginBottom: 8, color: '#1a1a1a' },
-  subtitle: { fontSize: 14, color: '#888', marginBottom: 32 },
-  label: { fontSize: 14, fontWeight: '600', color: '#555', marginBottom: 6 },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 14, marginBottom: 18, fontSize: 15 },
-  button: { backgroundColor: '#1a1a1a', padding: 16, borderRadius: 10, alignItems: 'center', marginBottom: 16, marginTop: 8 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  link: { textAlign: 'center', color: '#555', fontSize: 14 },
+  container: { flexGrow: 1, padding: 24, backgroundColor: colors.white, justifyContent: 'center' },
+  title: { fontSize: 32, fontWeight: 'bold', marginBottom: 8, color: colors.black },
+  subtitle: { fontSize: 14, color: colors.gray, marginBottom: 32 },
+  link: { textAlign: 'center', color: colors.subtext, fontSize: 14, marginTop: 8 },
 });

@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "react": ["node_modules/react"],
+      "react-native": ["node_modules/react-native"]
+    }
+  },
+  "exclude": ["node_modules"]
+}

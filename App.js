@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -15,18 +15,41 @@ import MapPickerScreen from './screens/MapPickerScreen';
 import RideTrackerScreen from './screens/RideTrackerScreen';
 import ShareTrackerScreen from './screens/ShareTrackerScreen';
 import RatingScreen from './screens/RatingScreen';
+import RideMapScreen from './screens/RideMapScreen';
+import ProfileScreen from './screens/ProfileScreen';
+import EcoStatsScreen from './screens/EcoStatsScreen';
+import MyBookingsScreen from './screens/MyBookingsScreen';
+import CommunityScreen from './screens/CommunityScreen';
+import BrowseMembersScreen from './screens/BrowseMembers';
+import LocationSpooferScreen from './screens/LocationSpooferScreen';
+
+import { registerForPushNotifications, setupNotificationListeners } from './services/notifications';
 
 const Stack = createStackNavigator();
 
 export default function App() {
+  const navigationRef = useRef(null);
+
+  useEffect(() => {
+    // Register for push notifications on app start
+    registerForPushNotifications();
+  }, []);
+
+  useEffect(() => {
+    if (!navigationRef.current) return;
+    // Set up notification tap handler
+    const cleanup = setupNotificationListeners(navigationRef.current);
+    return cleanup;
+  }, [navigationRef.current]);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef}>
         <Stack.Navigator
           initialRouteName="Login"
           screenOptions={{
             headerStyle: { backgroundColor: '#1a1a1a' },
-            headerTintColor: '#fff',
+            headerTintColor: '#ffffff',
             headerTitleStyle: { fontWeight: 'bold' },
           }}
         >
@@ -42,6 +65,13 @@ export default function App() {
           <Stack.Screen name="RideTracker" component={RideTrackerScreen} options={{ title: 'Live Tracker' }} />
           <Stack.Screen name="ShareTracker" component={ShareTrackerScreen} options={{ title: 'Share Location' }} />
           <Stack.Screen name="Rating" component={RatingScreen} options={{ title: 'Rate your ride' }} />
+          <Stack.Screen name="RideMap" component={RideMapScreen} options={{ title: 'Member Locations' }} />
+          <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'My Profile' }} />
+          <Stack.Screen name="EcoStats" component={EcoStatsScreen} options={{ title: 'Eco Stats' }} />
+          <Stack.Screen name="MyBookings" component={MyBookingsScreen} options={{ title: 'My Bookings' }} />
+          <Stack.Screen name="Community" component={CommunityScreen} options={{ title: 'Community' }} />
+          <Stack.Screen name="BrowseMembers" component={BrowseMembersScreen} options={{ title: 'Available Members' }} />
+          <Stack.Screen name="LocationSpoofer" component={LocationSpooferScreen} options={{ title: 'Location Spoofer' }} />
         </Stack.Navigator>
       </NavigationContainer>
     </GestureHandlerRootView>

@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../services/firebase';
+import { colors, shared } from '../styles/theme';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -33,7 +34,7 @@ export default function LoginScreen({ navigation }) {
       <Text style={styles.subtitle}>Smarter commutes, together</Text>
 
       <TextInput
-        style={styles.input}
+        style={shared.input}
         placeholder="Email"
         value={email}
         onChangeText={setEmail}
@@ -41,17 +42,21 @@ export default function LoginScreen({ navigation }) {
         autoCapitalize="none"
       />
       <TextInput
-        style={styles.input}
+        style={shared.input}
         placeholder="Password"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
       />
 
-      <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
+      <TouchableOpacity
+        style={[shared.button, { backgroundColor: colors.black }]}
+        onPress={handleLogin}
+        disabled={loading}
+      >
         {loading
-          ? <ActivityIndicator color="#fff" />
-          : <Text style={styles.buttonText}>Login</Text>
+          ? <ActivityIndicator color={colors.white} />
+          : <Text style={[shared.buttonText, { color: colors.white }]}>Login</Text>
         }
       </TouchableOpacity>
 
@@ -63,11 +68,8 @@ export default function LoginScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#fff' },
-  title: { fontSize: 40, fontWeight: 'bold', textAlign: 'center', marginBottom: 8, color: '#1a1a1a' },
-  subtitle: { fontSize: 14, textAlign: 'center', color: '#888', marginBottom: 48 },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 14, marginBottom: 16, fontSize: 16 },
-  button: { backgroundColor: '#1a1a1a', padding: 16, borderRadius: 8, alignItems: 'center', marginBottom: 16 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  link: { textAlign: 'center', color: '#555', fontSize: 14 },
+  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: colors.white },
+  title: { fontSize: 40, fontWeight: 'bold', textAlign: 'center', marginBottom: 8, color: colors.black },
+  subtitle: { fontSize: 14, textAlign: 'center', color: colors.gray, marginBottom: 48 },
+  link: { textAlign: 'center', color: colors.subtext, fontSize: 14, marginTop: 8 },
 });

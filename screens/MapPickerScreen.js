@@ -5,10 +5,11 @@ import {
   KeyboardAvoidingView, Platform
 } from 'react-native';
 import { WebView } from 'react-native-webview';
-import * as Location from 'expo-location';
+import { getLocation } from '../services/location';
+import { colors } from '../styles/theme';
 
 export default function MapPickerScreen({ navigation, route }) {
-  const { onLocationPicked } = route.params;
+  const { onLocationPicked, title } = route.params;
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [userLocation, setUserLocation] = useState({ lat: 20.2961, lng: 85.8245 });
   const [loading, setLoading] = useState(true);
@@ -21,9 +22,8 @@ export default function MapPickerScreen({ navigation, route }) {
 
   const getUserLocation = async () => {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        const loc = await Location.getCurrentPositionAsync({});
+      const loc = await getLocation();
+      if (loc) {
         setUserLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
       }
     } catch (e) {}
@@ -140,7 +140,7 @@ export default function MapPickerScreen({ navigation, route }) {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#1a1a1a" />
+        <ActivityIndicator size="large" color={colors.black} />
         <Text style={styles.loadingText}>Loading map...</Text>
       </View>
     );
@@ -148,9 +148,13 @@ export default function MapPickerScreen({ navigation, route }) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <View style={styles.purposeLabel}>
+        <Text style={styles.purposeText}>{title || 'Select location'}</Text>
+      </View>
+
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
@@ -159,7 +163,9 @@ export default function MapPickerScreen({ navigation, route }) {
           onChangeText={searchLocation}
           autoCorrect={false}
         />
-        {searching && <ActivityIndicator size="small" color="#888" style={styles.searchSpinner} />}
+        {searching && (
+          <ActivityIndicator size="small" color={colors.gray} style={{ marginLeft: 8 }} />
+        )}
       </View>
 
       {searchResults.length > 0 && (
@@ -186,7 +192,7 @@ export default function MapPickerScreen({ navigation, route }) {
         ref={webViewRef}
         source={{ html: mapHTML }}
         onMessage={handleMessage}
-        style={styles.map}
+        style={{ flex: 1 }}
         javaScriptEnabled
         scrollEnabled={false}
       />
@@ -212,33 +218,32 @@ export default function MapPickerScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 12, fontSize: 14, color: '#888' },
+  loadingText: { marginTop: 12, fontSize: 14, color: colors.gray },
+  purposeLabel: { backgroundColor: colors.yellow, paddingVertical: 10, paddingHorizontal: 16 },
+  purposeText: { fontSize: 14, fontWeight: 'bold', color: colors.black },
   searchContainer: {
     flexDirection: 'row', alignItems: 'center',
-    margin: 12, backgroundColor: '#fff',
-    borderWidth: 1, borderColor: '#ddd',
-    borderRadius: 10, paddingHorizontal: 12,
-    elevation: 3,
+    margin: 12, backgroundColor: colors.white,
+    borderWidth: 1, borderColor: colors.borderDark,
+    borderRadius: 10, paddingHorizontal: 12, elevation: 3,
   },
   searchInput: { flex: 1, paddingVertical: 12, fontSize: 14 },
-  searchSpinner: { marginLeft: 8 },
   resultsContainer: {
-    position: 'absolute', top: 64, left: 12, right: 12,
-    backgroundColor: '#fff', borderRadius: 10, zIndex: 999,
-    borderWidth: 1, borderColor: '#eee', elevation: 5, maxHeight: 200,
+    position: 'absolute', top: 120, left: 12, right: 12,
+    backgroundColor: colors.white, borderRadius: 10,
+    zIndex: 999, borderWidth: 1, borderColor: colors.border,
+    elevation: 5, maxHeight: 200,
   },
   resultItem: { padding: 14, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  resultText: { fontSize: 13, color: '#333', lineHeight: 18 },
-  map: { flex: 1 },
+  resultText: { fontSize: 13, color: colors.text, lineHeight: 18 },
   footer: {
-    backgroundColor: '#fff', padding: 16, paddingBottom: 32,
-    borderTopWidth: 1, borderTopColor: '#eee',
+    backgroundColor: colors.white, padding: 16, paddingBottom: 32,
+    borderTopWidth: 1, borderTopColor: colors.border,
   },
   selectedText: { fontSize: 13, color: '#444', marginBottom: 12, lineHeight: 18 },
-  hintText: { fontSize: 13, color: '#aaa', marginBottom: 12, textAlign: 'center' },
-  confirmBtn: { backgroundColor: '#1a1a1a', padding: 16, borderRadius: 10, alignItems: 'center' },
-  confirmDisabled: { backgroundColor: '#bbb' },
-  confirmText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  hintText: { fontSize: 13, color: colors.gray, marginBottom: 12, textAlign: 'center' },
+  confirmBtn: { backgroundColor: colors.black, padding: 16, borderRadius: 10, alignItems: 'center' },
+  confirmDisabled: { backgroundColor: '#bbbbbb' },
+  confirmText: { color: colors.white, fontWeight: 'bold', fontSize: 16 },
 });

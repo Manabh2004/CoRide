@@ -5,11 +5,13 @@ import {
 } from 'react-native';
 import { auth } from '../services/firebase';
 import api from '../services/api';
+import VouchBadge from '../components/VouchBadge';
+import { colors, shared } from '../styles/theme';
 
 const FALLBACK_RIDES = [
-  { id: 'dummy_1', hostName: 'Abhisek P. (demo)', origin: 'Saheed Nagar', destination: 'Infocity', time: '08:30 AM', seats: 2, rate: 4, rating: 4.8, overlap: 92 },
-  { id: 'dummy_2', hostName: 'Debasish P. (demo)', origin: 'Patia', destination: 'Infocity', time: '08:45 AM', seats: 1, rate: 3, rating: 4.5, overlap: 78 },
-  { id: 'dummy_3', hostName: 'Asish D. (demo)', origin: 'KIIT Square', destination: 'Infocity', time: '09:00 AM', seats: 3, rate: 5, rating: 4.2, overlap: 85 },
+  { id: 'dummy_1', hostName: 'Abhisek P. (demo)', host_uid: 'demo1', origin: 'Saheed Nagar', destination: 'Infocity', time: '08:30 AM', seats: 2, rate: 4, rating: 4.8, overlap: 92, detour_km: 0.3 },
+  { id: 'dummy_2', hostName: 'Debasish P. (demo)', host_uid: 'demo2', origin: 'Patia', destination: 'Infocity', time: '08:45 AM', seats: 1, rate: 3, rating: 4.5, overlap: 78, detour_km: 0.8 },
+  { id: 'dummy_3', hostName: 'Asish D. (demo)', host_uid: 'demo3', origin: 'KIIT Square', destination: 'Infocity', time: '09:00 AM', seats: 3, rate: 5, rating: 4.2, overlap: 85, detour_km: 1.2 },
 ];
 
 export default function RideResultsScreen({ route, navigation }) {
@@ -44,7 +46,7 @@ export default function RideResultsScreen({ route, navigation }) {
   const handleBook = (ride) => {
     Alert.alert(
       'Confirm Booking',
-      `Book with ${ride.hostName} at ${ride.time}?\n₹${ride.rate}/km`,
+      `Book with ${ride.hostName} at ${ride.time}?\n₹${ride.rate}/km · +${ride.detour_km || 0}km detour for host`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -53,7 +55,7 @@ export default function RideResultsScreen({ route, navigation }) {
             if (!usingDummy) {
               try {
                 const user = auth.currentUser;
-                await api.post('/bookings', {
+                const res = await api.post('/bookings', {
                   ride_id: ride.id,
                   member_uid: user.uid,
                   member_name: user.displayName,
@@ -64,8 +66,14 @@ export default function RideResultsScreen({ route, navigation }) {
                   drop_lat: drop.lat,
                   drop_lng: drop.lng,
                 });
+                const status = res.data.status;
+                if (status === 'accepted') {
+                  Alert.alert('Auto-accepted! ✅', 'The host auto-accepted your booking. Your ride is confirmed!');
+                } else {
+                  Alert.alert('Request Sent! 📨', 'Your booking request has been sent to the host. You\'ll be notified when they respond.');
+                }
               } catch (e) {
-                Alert.alert('Error', 'Could not complete booking');
+                Alert.alert('Error', e.response?.data?.error || 'Could not complete booking');
                 return;
               }
             }
@@ -77,31 +85,51 @@ export default function RideResultsScreen({ route, navigation }) {
   };
 
   const renderRide = ({ item }) => (
-    <View style={styles.card}>
+    <View style={shared.card}>
       <View style={styles.cardHeader}>
         <Text style={styles.hostName}>{item.hostName}</Text>
-        <View style={styles.ratingBadge}>
-          <Text style={styles.ratingText}>⭐ {item.rating}</Text>
-        </View>
+        <Text style={styles.ratingText}>⭐ {item.rating}</Text>
       </View>
+
+      <View style={styles.vouchRow}>
+        <VouchBadge
+          targetUid={item.host_uid}
+          targetName={item.hostName}
+          showVouchButton={true}
+        />
+        {item.auto_accept && (
+          <View style={styles.autoAcceptBadge}>
+            <Text style={styles.autoAcceptText}>⚡ Auto-accept</Text>
+          </View>
+        )}
+      </View>
+
       <Text style={styles.route}>{item.origin} → {item.destination}</Text>
+
       <View style={styles.overlapBar}>
         <View style={[styles.overlapFill, { width: `${item.overlap}%` }]} />
       </View>
-      <Text style={styles.overlapText}>{item.overlap}% route overlap</Text>
+      <Text style={styles.overlapText}>{item.overlap}% route overlap · +{item.detour_km || 0}km detour for host</Text>
+
       <View style={styles.cardFooter}>
         <Text style={styles.detail}>🕐 {item.time}</Text>
         <Text style={styles.detail}>💺 {item.seats} seats</Text>
-        <Text style={[styles.detail, styles.rate]}>₹{item.rate}/km</Text>
+        <Text style={[styles.detail, { fontWeight: 'bold', color: colors.black }]}>₹{item.rate}/km</Text>
       </View>
-      <TouchableOpacity style={styles.bookButton} onPress={() => handleBook(item)}>
-        <Text style={styles.bookButtonText}>Book this ride</Text>
+
+      <TouchableOpacity
+        style={[shared.button, { backgroundColor: colors.black, marginBottom: 0 }]}
+        onPress={() => handleBook(item)}
+      >
+        <Text style={[shared.buttonText, { color: colors.white }]}>
+          {item.auto_accept ? '⚡ Book instantly' : '📨 Request this ride'}
+        </Text>
       </TouchableOpacity>
     </View>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={{ flex: 1, backgroundColor: colors.lightGray }}>
       <View style={styles.searchSummary}>
         <Text style={styles.summaryText} numberOfLines={1}>📍 {pickup.address?.substring(0, 40)}</Text>
         <Text style={styles.summaryArrow}>↓</Text>
@@ -111,17 +139,17 @@ export default function RideResultsScreen({ route, navigation }) {
 
       {usingDummy && (
         <View style={styles.demoBanner}>
-          <Text style={styles.demoBannerText}>⚡ Demo mode — start Flask server for real results</Text>
+          <Text style={styles.demoBannerText}>⚡ Demo mode — backend unreachable</Text>
         </View>
       )}
 
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#1a1a1a" />
-          <Text style={styles.loadingText}>Finding carpools...</Text>
+        <View style={shared.center}>
+          <ActivityIndicator size="large" color={colors.black} />
+          <Text style={{ marginTop: 12, color: colors.gray }}>Finding carpools...</Text>
         </View>
       ) : rides.length === 0 ? (
-        <View style={styles.empty}>
+        <View style={shared.center}>
           <Text style={styles.emptyText}>No hosts match ₹{maxRate}/km</Text>
           <Text style={styles.emptyHint}>Try increasing your maximum rate</Text>
           <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -141,31 +169,25 @@ export default function RideResultsScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  searchSummary: { backgroundColor: '#1a1a1a', padding: 16 },
-  summaryText: { color: '#fff', fontSize: 13 },
-  summaryArrow: { color: '#F5C842', fontSize: 16, marginVertical: 2 },
-  summaryMeta: { color: '#aaa', fontSize: 12, marginTop: 6 },
+  searchSummary: { backgroundColor: colors.black, padding: 16 },
+  summaryText: { color: colors.white, fontSize: 13 },
+  summaryArrow: { color: colors.yellow, fontSize: 16, marginVertical: 2 },
+  summaryMeta: { color: colors.gray, fontSize: 12, marginTop: 6 },
   demoBanner: { backgroundColor: '#FFF3CD', padding: 10, paddingHorizontal: 16 },
   demoBannerText: { fontSize: 12, color: '#856404' },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 12, fontSize: 14, color: '#888' },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 18, marginBottom: 16, elevation: 2 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  hostName: { fontSize: 16, fontWeight: 'bold', color: '#1a1a1a' },
-  ratingBadge: { backgroundColor: '#f9f9f9', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
-  ratingText: { fontSize: 13, color: '#555' },
-  route: { fontSize: 13, color: '#666', marginBottom: 10 },
-  overlapBar: { height: 4, backgroundColor: '#eee', borderRadius: 2, marginBottom: 4 },
-  overlapFill: { height: 4, backgroundColor: '#F5C842', borderRadius: 2 },
-  overlapText: { fontSize: 11, color: '#aaa', marginBottom: 12 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  hostName: { fontSize: 16, fontWeight: 'bold', color: colors.black },
+  ratingText: { fontSize: 13, color: colors.subtext },
+  vouchRow: { flexDirection: 'row', gap: 8, marginBottom: 10, alignItems: 'center' },
+  autoAcceptBadge: { backgroundColor: '#FFF9C4', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14 },
+  autoAcceptText: { fontSize: 11, color: '#856404', fontWeight: '600' },
+  route: { fontSize: 13, color: colors.gray, marginBottom: 10 },
+  overlapBar: { height: 4, backgroundColor: colors.border, borderRadius: 2, marginBottom: 4 },
+  overlapFill: { height: 4, backgroundColor: colors.yellow, borderRadius: 2 },
+  overlapText: { fontSize: 11, color: colors.gray, marginBottom: 12 },
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
-  detail: { fontSize: 13, color: '#666' },
-  rate: { fontWeight: 'bold', color: '#1a1a1a' },
-  bookButton: { backgroundColor: '#1a1a1a', padding: 12, borderRadius: 8, alignItems: 'center' },
-  bookButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
-  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
-  emptyText: { fontSize: 16, fontWeight: 'bold', color: '#1a1a1a', textAlign: 'center', marginBottom: 8 },
-  emptyHint: { fontSize: 14, color: '#888', textAlign: 'center', marginBottom: 24 },
-  goBack: { fontSize: 14, color: '#F5C842', fontWeight: 'bold' },
+  detail: { fontSize: 13, color: colors.gray },
+  emptyText: { fontSize: 16, fontWeight: 'bold', color: colors.black, textAlign: 'center', marginBottom: 8 },
+  emptyHint: { fontSize: 14, color: colors.gray, textAlign: 'center', marginBottom: 24 },
+  goBack: { fontSize: 14, color: colors.yellow, fontWeight: 'bold' },
 });
