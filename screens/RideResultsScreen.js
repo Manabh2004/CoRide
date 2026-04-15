@@ -84,49 +84,57 @@ export default function RideResultsScreen({ route, navigation }) {
     );
   };
 
-  const renderRide = ({ item }) => (
-    <View style={shared.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.hostName}>{item.hostName}</Text>
-        <Text style={styles.ratingText}>⭐ {item.rating}</Text>
-      </View>
+  const renderRide = ({ item }) => {
+    return (
+      <View style={shared.card}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.hostName}>{item.hostName}</Text>
+          <Text style={styles.ratingText}>⭐ {item.rating}</Text>
+        </View>
 
-      <View style={styles.vouchRow}>
-        <VouchBadge
-          targetUid={item.host_uid}
-          targetName={item.hostName}
-          showVouchButton={true}
-        />
-        {item.auto_accept && (
-          <View style={styles.autoAcceptBadge}>
-            <Text style={styles.autoAcceptText}>⚡ Auto-accept</Text>
-          </View>
-        )}
-      </View>
+        <View style={styles.vouchRow}>
+          {item.host_uid && !item.host_uid.startsWith('demo') && (
+            <VouchBadge
+              targetUid={item.host_uid}
+              targetName={item.hostName}
+              showVouchButton={true}
+            />
+          )}
+          {item.auto_accept && (
+            <View style={styles.autoAcceptBadge}>
+              <Text style={styles.autoAcceptText}>⚡ Auto-accept</Text>
+            </View>
+          )}
+        </View>
 
-      <Text style={styles.route}>{item.origin} → {item.destination}</Text>
+        <Text style={styles.route}>{item.origin} → {item.destination}</Text>
 
-      <View style={styles.overlapBar}>
-        <View style={[styles.overlapFill, { width: `${item.overlap}%` }]} />
-      </View>
-      <Text style={styles.overlapText}>{item.overlap}% route overlap · +{item.detour_km || 0}km detour for host</Text>
-
-      <View style={styles.cardFooter}>
-        <Text style={styles.detail}>🕐 {item.time}</Text>
-        <Text style={styles.detail}>💺 {item.seats} seats</Text>
-        <Text style={[styles.detail, { fontWeight: 'bold', color: colors.black }]}>₹{item.rate}/km</Text>
-      </View>
-
-      <TouchableOpacity
-        style={[shared.button, { backgroundColor: colors.black, marginBottom: 0 }]}
-        onPress={() => handleBook(item)}
-      >
-        <Text style={[shared.buttonText, { color: colors.white }]}>
-          {item.auto_accept ? '⚡ Book instantly' : '📨 Request this ride'}
+        <View style={styles.overlapBar}>
+          <View style={[styles.overlapFill, { width: `${Math.min(item.overlap, 100)}%` }]} />
+        </View>
+        <Text style={styles.overlapText}>
+          {item.overlap}% route overlap · +{item.detour_km || 0}km detour for host
         </Text>
-      </TouchableOpacity>
-    </View>
-  );
+
+        <View style={styles.cardFooter}>
+          <Text style={styles.detail}>🕐 {item.time}</Text>
+          <Text style={styles.detail}>💺 {item.seats} seats</Text>
+          <Text style={[styles.detail, { fontWeight: 'bold', color: colors.black }]}>
+            ₹{item.rate}/km
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          style={[shared.button, { backgroundColor: colors.black, marginBottom: 0 }]}
+          onPress={() => handleBook(item)}
+        >
+          <Text style={[shared.buttonText, { color: colors.white }]}>
+            {item.auto_accept ? '⚡ Book instantly' : '📨 Request this ride'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.lightGray }}>

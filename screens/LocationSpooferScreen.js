@@ -5,13 +5,12 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WebView } from 'react-native-webview';
-import { colors, shared } from '../styles/theme';
+import { colors } from '../styles/theme';
 
-const SPOOFER_KEY = 'location_spoofer';
+export const SPOOFER_KEY = 'location_spoofer';
 const JOYSTICK_SIZE = 140;
 const KNOB_SIZE = 50;
 const MAX_OFFSET = (JOYSTICK_SIZE - KNOB_SIZE) / 2;
-const MOVE_SPEED = 0.00005; // degrees per ms of movement
 
 export default function LocationSpooferScreen() {
   const [enabled, setEnabled] = useState(false);
@@ -19,15 +18,12 @@ export default function LocationSpooferScreen() {
   const webViewRef = useRef(null);
   const knobPos = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const currentOffset = useRef({ x: 0, y: 0 });
-  const moveInterval = useRef(null);
   const locationRef = useRef({ lat: 20.2961, lng: 85.8245 });
+  const moveInterval = useRef(null);
 
-  // Load saved spoofer state
   useEffect(() => {
     loadState();
-    return () => {
-      if (moveInterval.current) clearInterval(moveInterval.current);
-    };
+    return () => { if (moveInterval.current) clearInterval(moveInterval.current); };
   }, []);
 
   const loadState = async () => {
@@ -35,7 +31,7 @@ export default function LocationSpooferScreen() {
       const stored = await AsyncStorage.getItem(SPOOFER_KEY);
       if (stored) {
         const data = JSON.parse(stored);
-        setEnabled(data.enabled || false);
+        setEnabled(!!data.enabled);
         if (data.location) {
           setSpoofedLocation(data.location);
           locationRef.current = data.location;
@@ -46,37 +42,42 @@ export default function LocationSpooferScreen() {
 
   const saveState = async (en, loc) => {
     try {
-      await AsyncStorage.setItem(SPOOFER_KEY, JSON.stringify({ enabled: en, location: loc }));
+      await AsyncStorage.setItem(SPOOFER_KEY, JSON.stringify({
+        enabled: en,
+        location: loc,
+      }));
     } catch (e) {}
   };
 
-  const toggleEnabled = (val) => {
+  const toggleEnabled = async (val) => {
     setEnabled(val);
-    saveState(val, locationRef.current);
-    if (!val) {
-      Alert.alert('Spoofer Off', 'App will now use your real GPS location.');
+    await saveState(val, locationRef.current);
+    if (val) {
+      Alert.alert(
+        '⚠️ Spoofer On',
+        'App will now use fake GPS. Use joystick or drag pin to move location.',
+        [{ text: 'Got it' }]
+      );
     } else {
-      Alert.alert('Spoofer On ⚠️', 'App will use the fake location shown on this screen. Move it with the joystick.');
+      Alert.alert('Spoofer Off', 'App will now use your real GPS location.');
     }
   };
 
-  // Start/stop movement based on joystick position
   const startMoving = () => {
     if (moveInterval.current) return;
-    moveInterval.current = setInterval(() => {
+    moveInterval.current = setInterval(async () => {
       const { x, y } = currentOffset.current;
-      if (Math.abs(x) < 5 && Math.abs(y) < 5) return;
+      if (Math.abs(x) < 3 && Math.abs(y) < 3) return;
 
       const normX = x / MAX_OFFSET;
       const normY = y / MAX_OFFSET;
+      const newLat = locationRef.current.lat - normY * 0.0003;
+      const newLng = locationRef.current.lng + normX * 0.0003;
+      const newLoc = { lat: newLat, lng: newLng };
 
-      const newLat = locationRef.current.lat - normY * MOVE_SPEED * 10;
-      const newLng = locationRef.current.lng + normX * MOVE_SPEED * 10;
+      locationRef.current = newLoc;
+      setSpoofedLocation(newLoc);
 
-      locationRef.current = { lat: newLat, lng: newLng };
-      setSpoofedLocation({ lat: newLat, lng: newLng });
-
-      // Update map
       webViewRef.current?.injectJavaScript(`
         if (window.spooferMarker) {
           window.spooferMarker.setLatLng([${newLat}, ${newLng}]);
@@ -85,10 +86,8 @@ export default function LocationSpooferScreen() {
         true;
       `);
 
-      if (enabled) {
-        saveState(true, { lat: newLat, lng: newLng });
-      }
-    }, 50);
+      if (enabled) await saveState(true, newLoc);
+    }, 100);
   };
 
   const stopMoving = () => {
@@ -133,36 +132,39 @@ export default function LocationSpooferScreen() {
         {attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(map);
 
       var icon = L.divIcon({
-        html:'<div style="width:20px;height:20px;background:#F5C842;border:3px solid #1a1a1a;border-radius:50%"></div>',
+        html:'<div style="width:20px;height:20px;background:#F5C842;border:3px solid #1a1a1a;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>',
         iconSize:[20,20],iconAnchor:[10,10],className:''
       });
 
-      window.spooferMarker = L.marker([${spoofedLocation.lat},${spoofedLocation.lng}],{icon:icon,draggable:true})
-        .addTo(map).bindPopup('Drag me to set location').openPopup();
+      window.spooferMarker = L.marker(
+        [${spoofedLocation.lat},${spoofedLocation.lng}],
+        {icon:icon, draggable:true}
+      ).addTo(map).bindPopup('Drag to set fake location').openPopup();
 
       window.spooferMarker.on('dragend', function(e) {
         var pos = e.target.getLatLng();
-        window.ReactNativeWebView.postMessage(JSON.stringify({lat:pos.lat,lng:pos.lng}));
+        window.ReactNativeWebView.postMessage(
+          JSON.stringify({lat:pos.lat, lng:pos.lng})
+        );
       });
     </script></body></html>
   `;
 
-  const handleMapMessage = (event) => {
+  const handleMapMessage = async (event) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
       locationRef.current = { lat: data.lat, lng: data.lng };
       setSpoofedLocation({ lat: data.lat, lng: data.lng });
-      if (enabled) saveState(true, { lat: data.lat, lng: data.lng });
+      if (enabled) await saveState(true, { lat: data.lat, lng: data.lng });
     } catch (e) {}
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.white }}>
-      {/* Header */}
       <View style={styles.header}>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>📍 Location Spoofer</Text>
-          <Text style={styles.headerSub}>For testing only — disable before demo</Text>
+          <Text style={styles.headerSub}>For testing only — disable before real demo</Text>
         </View>
         <Switch
           value={enabled}
@@ -175,12 +177,11 @@ export default function LocationSpooferScreen() {
       {enabled && (
         <View style={styles.warningBanner}>
           <Text style={styles.warningText}>
-            ⚠️ Spoofer is ON — app uses fake GPS: {spoofedLocation.lat.toFixed(5)}, {spoofedLocation.lng.toFixed(5)}
+            ⚠️ ACTIVE: {spoofedLocation.lat.toFixed(5)}, {spoofedLocation.lng.toFixed(5)}
           </Text>
         </View>
       )}
 
-      {/* Map */}
       <View style={{ flex: 1 }}>
         <WebView
           ref={webViewRef}
@@ -191,28 +192,26 @@ export default function LocationSpooferScreen() {
           scrollEnabled={false}
         />
 
-        {/* Joystick overlay */}
         {enabled && (
-          <View style={styles.joystickContainer}>
-            <View style={styles.joystickBase} {...panResponder.panHandlers}>
+          <View style={styles.joystickContainer} {...panResponder.panHandlers}>
+            <View style={styles.joystickBase}>
               <Animated.View
                 style={[
                   styles.joystickKnob,
-                  { transform: [{ translateX: knobPos.x }, { translateY: knobPos.y }] },
+                  { transform: knobPos.getTranslateTransform() }
                 ]}
               />
+              <Text style={styles.joystickLabel}>Hold to move</Text>
             </View>
-            <Text style={styles.joystickLabel}>Hold &amp; drag to move</Text>
-            <Text style={styles.joystickLabel}>Or drag pin on map</Text>
           </View>
         )}
       </View>
 
       {!enabled && (
-        <View style={styles.disabledOverlay}>
+        <View style={styles.disabledMsg}>
           <Text style={styles.disabledText}>
-            Toggle the switch above to enable the location spoofer.{'\n'}
-            When enabled, use the joystick to simulate movement.
+            Toggle ON to activate fake GPS.{'\n'}
+            Drag the yellow pin or use joystick to set location.
           </Text>
         </View>
       )}
@@ -227,28 +226,29 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 16, fontWeight: 'bold', color: colors.yellow },
   headerSub: { fontSize: 11, color: colors.gray, marginTop: 2 },
-  warningBanner: { backgroundColor: '#FFF3CD', padding: 10, paddingHorizontal: 16 },
-  warningText: { fontSize: 11, color: '#856404' },
+  warningBanner: { backgroundColor: '#FFF3CD', padding: 8, paddingHorizontal: 16 },
+  warningText: { fontSize: 11, color: '#856404', fontWeight: '600' },
   joystickContainer: {
-    position: 'absolute', bottom: 20, right: 20,
+    position: 'absolute', bottom: 24, right: 16,
     alignItems: 'center',
   },
   joystickBase: {
     width: JOYSTICK_SIZE, height: JOYSTICK_SIZE,
     borderRadius: JOYSTICK_SIZE / 2,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.65)',
     justifyContent: 'center', alignItems: 'center',
     borderWidth: 2, borderColor: colors.yellow,
   },
   joystickKnob: {
+    position: 'absolute',
     width: KNOB_SIZE, height: KNOB_SIZE,
     borderRadius: KNOB_SIZE / 2,
     backgroundColor: colors.yellow,
     borderWidth: 3, borderColor: colors.white,
-    shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, elevation: 4,
+    elevation: 4,
   },
-  joystickLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 10, marginTop: 4, textAlign: 'center' },
-  disabledOverlay: {
+  joystickLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 9, marginTop: KNOB_SIZE },
+  disabledMsg: {
     padding: 20, backgroundColor: colors.offWhite,
     borderTopWidth: 1, borderTopColor: colors.border,
   },
