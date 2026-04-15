@@ -28,24 +28,24 @@ export default function BookRideScreen({ navigation }) {
     }
     setLoading(true);
 
-    // Post search so hosts can see this member
+    // Post search in background — never block navigation on this
     try {
       const user = auth.currentUser;
-      await api.post('/searches', {
-        member_uid: user.uid,
-        member_name: user.displayName,
-        pickup_address: pickup.address,
-        pickup_lat: pickup.lat,
-        pickup_lng: pickup.lng,
-        drop_address: drop.address,
-        drop_lat: drop.lat,
-        drop_lng: drop.lng,
-        departure_time: time,
-        max_rate: maxRate,
-      });
-    } catch (e) {
-      // Non-fatal — still proceed to results
-    }
+      if (user) {
+        api.post('/searches', {
+          member_uid: user.uid,
+          member_name: user.displayName || 'Member',
+          pickup_address: pickup.address,
+          pickup_lat: pickup.lat,
+          pickup_lng: pickup.lng,
+          drop_address: drop.address,
+          drop_lat: drop.lat,
+          drop_lng: drop.lng,
+          departure_time: time,
+          max_rate: maxRate,
+        }).catch(() => {}); // fire and forget
+      }
+    } catch (e) {}
 
     setLoading(false);
     navigation.navigate('RideResults', { pickup, drop, time, maxRate });

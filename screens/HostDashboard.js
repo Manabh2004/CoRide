@@ -158,23 +158,33 @@ export default function HostDashboard({ navigation }) {
       {rides.length > 0 && (
         <View style={styles.section}>
           <Text style={shared.sectionTitle}>My Active Rides</Text>
-          <Text style={styles.sectionHint}>Tap a ride to see member pickup locations</Text>
+          <Text style={styles.sectionHint}>Tap a ride to see member locations</Text>
           {rides.map(ride => (
-            <TouchableOpacity
-              key={ride.id}
-              style={shared.card}
-              onPress={() => navigation.navigate('RideMap', { ride })}
-            >
+            <View key={ride.id} style={shared.card}>
               <View style={styles.rideCardHeader}>
                 <Text style={styles.rideRoute} numberOfLines={1}>
                   {ride.origin_address?.substring(0, 22)} → {ride.destination_address?.substring(0, 22)}
                 </Text>
-                <Text style={styles.rideArrow}>›</Text>
               </View>
               <Text style={styles.rideMeta}>
                 🕐 {ride.departure_time} · 💺 {ride.available_seats} seats · ₹{ride.rate_per_km}/km
               </Text>
-            </TouchableOpacity>
+
+              <View style={styles.rideActions}>
+                <TouchableOpacity
+                  style={styles.rideActionBtn}
+                  onPress={() => navigation.navigate('RideMap', { ride })}
+                >
+                  <Text style={styles.rideActionText}>📍 Member map</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.rideActionBtn, { backgroundColor: colors.yellow }]}
+                  onPress={() => navigation.navigate('BrowseMembers', { ride_id: ride.id })}
+                >
+                  <Text style={[styles.rideActionText, { color: colors.black }]}>🔍 Browse members</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           ))}
         </View>
       )}
@@ -228,4 +238,12 @@ const styles = StyleSheet.create({
   gridCard: { width: '47%', backgroundColor: colors.offWhite, borderRadius: 12, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
   gridEmoji: { fontSize: 28, marginBottom: 8 },
   gridLabel: { fontSize: 13, fontWeight: '600', color: colors.text },
+  rideActions: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  rideActionBtn: {
+    flex: 1, padding: 10, borderRadius: 8,
+    backgroundColor: colors.offWhite,
+    alignItems: 'center', borderWidth: 1,
+    borderColor: colors.border,
+  },
+  rideActionText: { fontSize: 12, fontWeight: '600', color: colors.black },
 });
