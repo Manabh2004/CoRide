@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, TextInput, Alert, ActivityIndicator
+  ScrollView, TextInput, Alert, ActivityIndicator, Platform
 } from 'react-native';
 import { auth } from '../services/firebase';
 import api from '../services/api';
@@ -18,9 +18,27 @@ export default function OfferRideScreen({ navigation }) {
   const [autoAccept, setAutoAccept] = useState(false);
   const [minRating, setMinRating] = useState(0);
   const [minVouches, setMinVouches] = useState(0);
+  const [requireNetworkVouch, setRequireNetworkVouch] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0]; // YYYY-MM-DD
+  });
 
   const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  // Generate next 7 days for selection
+  const getDateOptions = () => {
+    const opts = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      const iso = d.toISOString().split('T')[0];
+      const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+      opts.push({ iso, label });
+    }
+    return opts;
+  };
 
   const openMapPicker = (type) => {
     navigation.navigate('MapPicker', {
@@ -38,7 +56,7 @@ export default function OfferRideScreen({ navigation }) {
 
   const handleOffer = async () => {
     if (!origin || !destination || !seats || !rate) {
-      Alert.alert('Error', 'Please fill in all fields and pick locations on the map');
+      Alert.alert('Error', 'Please fill in all fields and pick locations');
       return;
     }
     if (recurring && days.length === 0) {
@@ -58,6 +76,7 @@ export default function OfferRideScreen({ navigation }) {
         destination_lat: destination.lat,
         destination_lng: destination.lng,
         departure_time: time,
+        ride_date: selectedDate,
         seats: parseInt(seats),
         rate_per_km: parseFloat(rate),
         is_recurring: recurring,
@@ -65,19 +84,16 @@ export default function OfferRideScreen({ navigation }) {
         auto_accept: autoAccept,
         min_rating_required: minRating,
         min_vouches_required: minVouches,
+        require_network_vouch: requireNetworkVouch,
       });
-
-      Alert.alert(
-        'Ride Posted! 🎉',
-        'Members going your way will be matched with you.',
-        [{
-          text: 'Browse available members',
-          onPress: () => navigation.navigate('BrowseMembers', { ride_id: res.data.ride_id }),
-        },
-        { text: 'Go to Dashboard', onPress: () => navigation.navigate('HostDashboard') }]
+      Alert.alert('Ride Posted! 🎉', `Your ride on ${selectedDate} at ${time} has been posted.`,
+        [
+          { text: 'Browse Members', onPress: () => navigation.navigate('BrowseMembers', { ride_id: res.data.ride_id }) },
+          { text: 'Dashboard', onPress: () => navigation.navigate('HostDashboard') },
+        ]
       );
     } catch (e) {
-      Alert.alert('Error', 'Could not post ride. Check your connection.');
+      Alert.alert('Error', 'Could not post ride. Check connection.');
     } finally {
       setLoading(false);
     }
@@ -101,9 +117,26 @@ export default function OfferRideScreen({ navigation }) {
         </Text>
       </TouchableOpacity>
 
+      <Text style={shared.label}>Date</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
+        <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
+          {getDateOptions().map(opt => (
+            <TouchableOpacity
+              key={opt.iso}
+              style={[styles.dateChip, selectedDate === opt.iso && styles.dateChipActive]}
+              onPress={() => setSelectedDate(opt.iso)}
+            >
+              <Text style={[styles.dateChipText, selectedDate === opt.iso && styles.dateChipTextActive]}>
+                {opt.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+
       <Text style={shared.label}>Departure time</Text>
       <View style={styles.chipRow}>
-        {['07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM'].map(t => (
+        {['07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '05:00 PM', '06:00 PM'].map(t => (
           <TouchableOpacity
             key={t}
             style={[shared.chip, time === t && shared.chipActive]}
@@ -129,91 +162,65 @@ export default function OfferRideScreen({ navigation }) {
 
       {/* Auto-accept toggle */}
       <View style={styles.toggleRow}>
-        <TouchableOpacity
-          style={[styles.toggle, autoAccept && styles.toggleOn]}
-          onPress={() => setAutoAccept(!autoAccept)}
-        >
+        <TouchableOpacity style={[styles.toggle, autoAccept && styles.toggleOn]} onPress={() => setAutoAccept(!autoAccept)}>
           <View style={[styles.toggleKnob, autoAccept && styles.toggleKnobOn]} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.toggleLabel}>Auto-accept members</Text>
-          <Text style={styles.toggleSub}>
-            {autoAccept
-              ? 'Members meeting your criteria are confirmed instantly'
-              : 'You review and accept/reject each request manually'}
-          </Text>
+          <Text style={styles.toggleSub}>{autoAccept ? 'Members meeting criteria confirmed instantly' : 'You review each request manually'}</Text>
         </View>
       </View>
 
-      {/* Auto-accept filters — only show when auto-accept is on */}
       {autoAccept && (
         <View style={styles.filterBox}>
           <Text style={styles.filterTitle}>Auto-accept criteria</Text>
-          <Text style={shared.label}>Minimum star rating</Text>
+          <Text style={shared.label}>Minimum rating</Text>
           <View style={styles.chipRow}>
             {[0, 3, 3.5, 4, 4.5].map(r => (
-              <TouchableOpacity
-                key={r}
-                style={[shared.chip, minRating === r && shared.chipActive]}
-                onPress={() => setMinRating(r)}
-              >
-                <Text style={[shared.chipText, minRating === r && shared.chipTextActive]}>
-                  {r === 0 ? 'Any' : `${r}★`}
-                </Text>
+              <TouchableOpacity key={r} style={[shared.chip, minRating === r && shared.chipActive]} onPress={() => setMinRating(r)}>
+                <Text style={[shared.chipText, minRating === r && shared.chipTextActive]}>{r === 0 ? 'Any' : `${r}★`}</Text>
               </TouchableOpacity>
             ))}
           </View>
-          <Text style={shared.label}>Minimum community vouches</Text>
+          <Text style={shared.label}>Minimum vouches</Text>
           <View style={styles.chipRow}>
             {[0, 1, 3, 5].map(v => (
-              <TouchableOpacity
-                key={v}
-                style={[shared.chip, minVouches === v && shared.chipActive]}
-                onPress={() => setMinVouches(v)}
-              >
-                <Text style={[shared.chipText, minVouches === v && shared.chipTextActive]}>
-                  {v === 0 ? 'Any' : `${v}+ vouches`}
-                </Text>
+              <TouchableOpacity key={v} style={[shared.chip, minVouches === v && shared.chipActive]} onPress={() => setMinVouches(v)}>
+                <Text style={[shared.chipText, minVouches === v && shared.chipTextActive]}>{v === 0 ? 'Any' : `${v}+`}</Text>
               </TouchableOpacity>
             ))}
+          </View>
+          <View style={styles.toggleRow}>
+            <TouchableOpacity style={[styles.toggle, requireNetworkVouch && styles.toggleOn]} onPress={() => setRequireNetworkVouch(!requireNetworkVouch)}>
+              <View style={[styles.toggleKnob, requireNetworkVouch && styles.toggleKnobOn]} />
+            </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.toggleLabel}>Require personal/network vouch</Text>
+              <Text style={styles.toggleSub}>Only accept members vouched by someone you trust</Text>
+            </View>
           </View>
         </View>
       )}
 
-      {/* Recurring toggle */}
+      {/* Recurring */}
       <View style={styles.toggleRow}>
-        <TouchableOpacity
-          style={[styles.toggle, recurring && styles.toggleOn]}
-          onPress={() => setRecurring(!recurring)}
-        >
+        <TouchableOpacity style={[styles.toggle, recurring && styles.toggleOn]} onPress={() => setRecurring(!recurring)}>
           <View style={[styles.toggleKnob, recurring && styles.toggleKnobOn]} />
         </TouchableOpacity>
         <Text style={styles.toggleLabel}>Recurring ride (repeat weekly)</Text>
       </View>
-
       {recurring && (
         <View style={styles.chipRow}>
           {DAYS.map(d => (
-            <TouchableOpacity
-              key={d}
-              style={[shared.chip, days.includes(d) && shared.chipActive]}
-              onPress={() => toggleDay(d)}
-            >
+            <TouchableOpacity key={d} style={[shared.chip, days.includes(d) && shared.chipActive]} onPress={() => toggleDay(d)}>
               <Text style={[shared.chipText, days.includes(d) && shared.chipTextActive]}>{d}</Text>
             </TouchableOpacity>
           ))}
         </View>
       )}
 
-      <TouchableOpacity
-        style={[shared.button, { backgroundColor: colors.yellow }]}
-        onPress={handleOffer}
-        disabled={loading}
-      >
-        {loading
-          ? <ActivityIndicator color={colors.black} />
-          : <Text style={[shared.buttonText, { color: colors.black }]}>Post My Ride</Text>
-        }
+      <TouchableOpacity style={[shared.button, { backgroundColor: colors.yellow }]} onPress={handleOffer} disabled={loading}>
+        {loading ? <ActivityIndicator color={colors.black} /> : <Text style={[shared.buttonText, { color: colors.black }]}>Post My Ride</Text>}
       </TouchableOpacity>
     </ScrollView>
   );
@@ -225,6 +232,10 @@ const styles = StyleSheet.create({
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
   row: { flexDirection: 'row', gap: 16 },
   halfField: { flex: 1 },
+  dateChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: colors.borderDark, backgroundColor: colors.white },
+  dateChipActive: { backgroundColor: colors.black, borderColor: colors.black },
+  dateChipText: { fontSize: 13, color: colors.subtext, fontWeight: '600' },
+  dateChipTextActive: { color: colors.white },
   toggleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 12 },
   toggle: { width: 44, height: 24, borderRadius: 12, backgroundColor: colors.borderDark, justifyContent: 'center', padding: 2 },
   toggleOn: { backgroundColor: colors.yellow },

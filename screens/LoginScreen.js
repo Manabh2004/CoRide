@@ -6,6 +6,7 @@ import {
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import { colors, shared } from '../styles/theme';
+import { Image } from 'react-native';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -30,6 +31,11 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <Image
+        source={require('../assets/images/logo.png')}
+        style={styles.logo}
+        resizeMode="contain"
+      />
       <Text style={styles.title}>CoRide</Text>
       <Text style={styles.subtitle}>Smarter commutes, together</Text>
 
@@ -72,4 +78,6 @@ const styles = StyleSheet.create({
   title: { fontSize: 40, fontWeight: 'bold', textAlign: 'center', marginBottom: 8, color: colors.black },
   subtitle: { fontSize: 14, textAlign: 'center', color: colors.gray, marginBottom: 48 },
   link: { textAlign: 'center', color: colors.subtext, fontSize: 14, marginTop: 8 },
+  logo: { width: 100, height: 100, alignSelf: 'center', marginBottom: 16,
+},
 });

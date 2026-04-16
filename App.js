@@ -22,6 +22,7 @@ import MyBookingsScreen from './screens/MyBookingsScreen';
 import CommunityScreen from './screens/CommunityScreen';
 import BrowseMembersScreen from './screens/BrowseMembers';
 import LocationSpooferScreen from './screens/LocationSpooferScreen';
+import MyRatingsScreen from './screens/MyRatingsScreen';
 
 import { registerForPushNotifications, setupNotificationListeners } from './services/notifications';
 
@@ -72,6 +73,7 @@ export default function App() {
           <Stack.Screen name="Community" component={CommunityScreen} options={{ title: 'Community' }} />
           <Stack.Screen name="BrowseMembers" component={BrowseMembersScreen} options={{ title: 'Available Members' }} />
           <Stack.Screen name="LocationSpoofer" component={LocationSpooferScreen} options={{ title: 'Location Spoofer' }} />
+          <Stack.Screen name="MyRatings" component={MyRatingsScreen} options={{ title: 'My Ratings' }} />
         </Stack.Navigator>
       </NavigationContainer>
     </GestureHandlerRootView>
